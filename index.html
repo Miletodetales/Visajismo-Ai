@@ -222,29 +222,32 @@
 </div>
 
 <script>
-const SYSTEM_PROMPT = `Eres el mejor experto en visajismo y estilismo masculino del mundo, con 20 años de experiencia en las barberías más exclusivas de Madrid, París y Milán. Analizas rostros con precisión milimétrica.
+const SYSTEM_PROMPT = `Eres el mejor experto en visajismo y estilismo del mundo, con 20 años de experiencia en las peluquerías y barberías más exclusivas de Madrid, París y Milán. Analizas rostros de hombres y mujeres con precisión milimétrica y adaptas las recomendaciones al género y los rasgos de cada persona.
 
 Cuando recibas una foto, devuelve ÚNICAMENTE un objeto JSON válido (sin markdown, sin texto extra) con esta estructura exacta:
 
 {
+  "genero": "string — 'masculino' o 'femenino' según lo que observes",
   "formaRostro": "string",
   "descripcionRostro": "string — 1 frase sobre proporciones clave",
   "puntosFuertes": ["2-3 rasgos a potenciar"],
   "puntosAmejorar": ["1-2 aspectos a equilibrar"],
   "cortes": [
-    {"nombre":"string","etiqueta":"MEJOR OPCIÓN","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string","promptImagen":"string — descripción EN INGLÉS para generar una foto de ejemplo del peinado en un modelo masculino genérico, ej: 'professional barbershop photo of a man with a textured quiff haircut, thick straight dark hair, clean fade on the sides, studio lighting, front view'"},
-    {"nombre":"string","etiqueta":"VERSÁTIL","descripcion":"string","dificultad":"Moderado","producto":"string","instruccionBarbero":"string","promptImagen":"string en inglés igual que arriba"},
-    {"nombre":"string","etiqueta":"FORMAL","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string","promptImagen":"string en inglés igual que arriba"}
+    {"nombre":"string","etiqueta":"MEJOR OPCIÓN","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string — instrucción técnica para el/la profesional","promptImagen":"string — descripción EN INGLÉS para generar una foto de ejemplo del peinado en un modelo genérico del MISMO género que la persona, ej: 'professional salon photo of a woman with a long layered haircut, studio lighting, front view' o 'professional barbershop photo of a man with a textured quiff, clean fade, studio lighting, front view'"},
+    {"nombre":"string","etiqueta":"VERSÁTIL","descripcion":"string","dificultad":"Moderado","producto":"string","instruccionBarbero":"string","promptImagen":"string en inglés igual que arriba, mismo género"},
+    {"nombre":"string","etiqueta":"FORMAL","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string","promptImagen":"string en inglés igual que arriba, mismo género"}
   ],
   "barba": {
-    "recomendada": true,
-    "estilo": "string",
+    "recomendada": true/false — true SOLO si la persona es masculina y la barba aporta valor; false en caso contrario,
+    "estilo": "string — si no aplica barba, sugiere en su lugar consejos de cejas/perfilado facial",
     "lineaCuello": "string",
     "lineaMejilla": "string",
     "consejo": "string"
   },
-  "fichaCompleta": "string — texto técnico listo para copiar y enviar al barbero"
+  "fichaCompleta": "string — texto técnico listo para copiar y enviar al peluquero o barbero"
 }
+
+Adapta TODO al género observado: cortes femeninos para mujeres (capas, bob, midi, melenas, flequillos, etc.) y masculinos para hombres. Para mujeres, en el bloque 'barba' pon recomendada:false y usa ese espacio para consejos de cejas y perfilado.
 
 Si no ves un rostro humano claramente: {"error":"No se detectó un rostro. Sube una foto frontal con buena iluminación."}`;
 
@@ -463,7 +466,7 @@ function renderResults(d) {
         <span class="prod">🧴 ${cut.producto}</span>
       </div>
       <div class="barber-strip">
-        <div class="barber-label">✦ INSTRUCCIÓN PARA EL BARBERO</div>
+        <div class="barber-label">✦ INSTRUCCIÓN PARA TU PROFESIONAL</div>
         <div class="barber-txt">${cut.instruccionBarbero}</div>
       </div>
     </div>`;
@@ -501,16 +504,23 @@ function renderResults(d) {
     <div class="divider"><div class="divider-line"></div><span class="divider-txt">TUS CORTES IDEALES</span><div class="divider-line"></div></div>
     ${d.cortes.map((c,i)=>cutCard(c,i)).join('')}
 
-    <div class="divider"><div class="divider-line"></div><span class="divider-txt">BARBA</span><div class="divider-line"></div></div>
+    ${(() => {
+      const esFem = (d.genero === 'femenino') || (d.barba && d.barba.recomendada === false);
+      const titulo = esFem ? 'CEJAS Y PERFILADO' : 'BARBA';
+      const cardTitle = esFem ? 'Cejas y Perfilado' : 'Diseño de Barba';
+      const icon = esFem ? '✨' : '🪒';
+      const fichaLabel = esFem ? 'FICHA PARA TU PELUQUERO' : 'FICHA PARA TU BARBERO';
+      return `
+    <div class="divider"><div class="divider-line"></div><span class="divider-txt">${titulo}</span><div class="divider-line"></div></div>
     <div class="beard-card">
       <div class="beard-head">
-        <span style="font-size:20px">🪒</span>
-        <span class="beard-title">Diseño de Barba</span>
-        <span class="${d.barba.recomendada?'tag-ok':'tag-opt'}">${d.barba.recomendada?'RECOMENDADA':'OPCIONAL'}</span>
+        <span style="font-size:20px">${icon}</span>
+        <span class="beard-title">${cardTitle}</span>
+        <span class="${d.barba.recomendada?'tag-ok':'tag-opt'}">${d.barba.recomendada?'RECOMENDADA':(esFem?'CONSEJO':'OPCIONAL')}</span>
       </div>
       <div class="beard-style">${d.barba.estilo}</div>
       <div class="beard-items">
-        ${[['📏','Línea del cuello',d.barba.lineaCuello],['↗','Línea de mejilla',d.barba.lineaMejilla],['💡','Consejo',d.barba.consejo]]
+        ${[['📏', esFem?'Forma de cejas':'Línea del cuello', d.barba.lineaCuello],['↗', esFem?'Arco y simetría':'Línea de mejilla', d.barba.lineaMejilla],['💡','Consejo',d.barba.consejo]]
           .map(([ic,lb,vl])=>`
           <div class="beard-item">
             <span class="beard-icon">${ic}</span>
@@ -519,10 +529,11 @@ function renderResults(d) {
       </div>
     </div>
 
-    <div class="divider"><div class="divider-line"></div><span class="divider-txt">FICHA PARA TU BARBERO</span><div class="divider-line"></div></div>
+    <div class="divider"><div class="divider-line"></div><span class="divider-txt">${fichaLabel}</span><div class="divider-line"></div></div>`;
+    })()}
     <div class="ficha-card">
       <div class="ficha-head">
-        <div class="ficha-title"><span>💈</span> Ficha de Barbería</div>
+        <div class="ficha-title"><span>💈</span> Ficha de Estilismo</div>
         <button class="btn-copy" id="btn-copy" onclick="copyFicha()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           Copiar
