@@ -273,7 +273,7 @@ function getKey() { return localStorage.getItem('visia_key'); }
 // ── GEMINI KEY ─────────────────────────────────────────────────────────────────
 function saveGemKey() {
   const k = document.getElementById('gemkey-input').value.trim();
-  if (!k.startsWith('AIza')) { alert('La key de Gemini debe empezar por AIza…'); return; }
+  if (k.length < 20) { alert('La key de Gemini parece incompleta. Cópiala entera desde aistudio.google.com/apikey.'); return; }
   localStorage.setItem('visia_gemkey', k);
   showGemKeyOk();
 }
@@ -558,10 +558,13 @@ async function generateCutImages(cortes) {
 
     try {
       const res = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + gemKey,
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': gemKey
+          },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }]
           })
