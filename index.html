@@ -101,6 +101,10 @@
   .barber-strip{background:#0F1113;border-left:3px solid #5A6975;border-radius:0 8px 8px 0;padding:11px 14px;}
   .barber-label{color:#5A6975;font-size:9.5px;letter-spacing:.14em;margin-bottom:5px;font-weight:700;}
   .barber-txt{color:#B0BDC8;font-size:13px;line-height:1.55;}
+  .cut-img-slot{border-radius:10px;overflow:hidden;background:#0F1113;border:1px solid #272A2E;min-height:60px;display:flex;align-items:center;justify-content:center;}
+  .cut-img-slot img{width:100%;display:block;}
+  .cut-img-loading{color:#5A6975;font-size:12px;padding:24px 12px;text-align:center;}
+  .cut-img-error{color:#5A6975;font-size:11.5px;padding:14px 12px;text-align:center;line-height:1.5;}
 
   /* BEARD */
   .beard-card{background:#1B1D20;border:1px solid #272A2E;border-radius:12px;padding:20px 22px;box-shadow:0 2px 12px rgba(0,0,0,.4);}
@@ -144,17 +148,31 @@
   <p class="subtitle">Sube una foto — la IA analiza tus proporciones y recomienda tus mejores cortes</p>
 </div>
 
-<!-- API KEY -->
+<!-- API KEY ANTHROPIC -->
 <div class="apibox">
   <div id="apikey-section">
     <div class="apibox-inner">
-      <input type="password" id="apikey-input" placeholder="Pega aquí tu API Key de Anthropic  (sk-ant-...)"/>
+      <input type="password" id="apikey-input" placeholder="API Key de Anthropic  (sk-ant-...)"/>
       <button onclick="saveKey()">Guardar</button>
     </div>
-    <p class="api-hint">Consigue tu key gratis en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys</p>
+    <p class="api-hint">Análisis del rostro · <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys</p>
   </div>
   <div id="apikey-ok" class="api-ok hidden">
-    ✅ API Key guardada — <span style="color:#636E78;font-size:11px;cursor:pointer;" onclick="clearKey()">cambiar</span>
+    ✅ Anthropic conectada — <span style="color:#636E78;font-size:11px;cursor:pointer;" onclick="clearKey()">cambiar</span>
+  </div>
+</div>
+
+<!-- API KEY GEMINI -->
+<div class="apibox" style="margin-top:12px;">
+  <div id="gemkey-section">
+    <div class="apibox-inner">
+      <input type="password" id="gemkey-input" placeholder="API Key de Google Gemini  (AIza...)"/>
+      <button onclick="saveGemKey()">Guardar</button>
+    </div>
+    <p class="api-hint">Imágenes de los cortes · <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> → Create API key</p>
+  </div>
+  <div id="gemkey-ok" class="api-ok hidden">
+    ✅ Gemini conectada (imágenes activadas) — <span style="color:#636E78;font-size:11px;cursor:pointer;" onclick="clearGemKey()">cambiar</span>
   </div>
 </div>
 
@@ -214,9 +232,9 @@ Cuando recibas una foto, devuelve ÚNICAMENTE un objeto JSON válido (sin markdo
   "puntosFuertes": ["2-3 rasgos a potenciar"],
   "puntosAmejorar": ["1-2 aspectos a equilibrar"],
   "cortes": [
-    {"nombre":"string","etiqueta":"MEJOR OPCIÓN","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string"},
-    {"nombre":"string","etiqueta":"VERSÁTIL","descripcion":"string","dificultad":"Moderado","producto":"string","instruccionBarbero":"string"},
-    {"nombre":"string","etiqueta":"FORMAL","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string"}
+    {"nombre":"string","etiqueta":"MEJOR OPCIÓN","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string","promptImagen":"string — descripción EN INGLÉS para generar una foto de ejemplo del peinado en un modelo masculino genérico, ej: 'professional barbershop photo of a man with a textured quiff haircut, thick straight dark hair, clean fade on the sides, studio lighting, front view'"},
+    {"nombre":"string","etiqueta":"VERSÁTIL","descripcion":"string","dificultad":"Moderado","producto":"string","instruccionBarbero":"string","promptImagen":"string en inglés igual que arriba"},
+    {"nombre":"string","etiqueta":"FORMAL","descripcion":"string","dificultad":"Fácil","producto":"string","instruccionBarbero":"string","promptImagen":"string en inglés igual que arriba"}
   ],
   "barba": {
     "recomendada": true,
@@ -252,8 +270,28 @@ function showKeyOk() {
 }
 function getKey() { return localStorage.getItem('visia_key'); }
 
+// ── GEMINI KEY ─────────────────────────────────────────────────────────────────
+function saveGemKey() {
+  const k = document.getElementById('gemkey-input').value.trim();
+  if (!k.startsWith('AIza')) { alert('La key de Gemini debe empezar por AIza…'); return; }
+  localStorage.setItem('visia_gemkey', k);
+  showGemKeyOk();
+}
+function clearGemKey() {
+  localStorage.removeItem('visia_gemkey');
+  document.getElementById('gemkey-ok').classList.add('hidden');
+  document.getElementById('gemkey-section').classList.remove('hidden');
+  document.getElementById('gemkey-input').value = '';
+}
+function showGemKeyOk() {
+  document.getElementById('gemkey-section').classList.add('hidden');
+  document.getElementById('gemkey-ok').classList.remove('hidden');
+}
+function getGemKey() { return localStorage.getItem('visia_gemkey'); }
+
 window.addEventListener('DOMContentLoaded', () => {
   if (getKey()) showKeyOk();
+  if (getGemKey()) showGemKeyOk();
 });
 
 // ── FILE HANDLING ─────────────────────────────────────────────────────────────
@@ -416,6 +454,9 @@ function renderResults(d) {
         </div>
         <span class="badge ${etiquetaClass[cut.etiqueta]||'badge-vers'}">${cut.etiqueta}</span>
       </div>
+      <div class="cut-img-slot" id="cut-img-${i}">
+        <div class="cut-img-loading">🎨 Generando imagen del estilo…</div>
+      </div>
       <p class="cut-desc">${cut.descripcion}</p>
       <div class="cut-meta">
         <div class="dots">${dots(cut.dificultad)}</div>
@@ -495,6 +536,62 @@ function renderResults(d) {
   el.classList.remove('hidden');
   document.getElementById('preview-section').classList.add('hidden');
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Generar imágenes de cada corte con Gemini (si hay key)
+  generateCutImages(d.cortes);
+}
+
+// ── GENERAR IMÁGENES CON GEMINI ───────────────────────────────────────────────
+async function generateCutImages(cortes) {
+  const gemKey = getGemKey();
+
+  for (let i = 0; i < cortes.length; i++) {
+    const slot = document.getElementById('cut-img-' + i);
+    if (!slot) continue;
+
+    if (!gemKey) {
+      slot.innerHTML = '<div class="cut-img-error">💡 Conecta tu API Key de Gemini arriba para ver una imagen de ejemplo de cada corte</div>';
+      continue;
+    }
+
+    const prompt = cortes[i].promptImagen || ('professional barbershop photo of a man with a ' + cortes[i].nombre + ' haircut, studio lighting, front view');
+
+    try {
+      const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + gemKey,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
+        }
+      );
+      const data = await res.json();
+
+      if (data.error) {
+        slot.innerHTML = '<div class="cut-img-error">No se pudo generar la imagen: ' + (data.error.message || 'error') + '</div>';
+        continue;
+      }
+
+      // Buscar la imagen en la respuesta
+      let imgData = null, mime = 'image/png';
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      for (const p of parts) {
+        if (p.inlineData?.data) { imgData = p.inlineData.data; mime = p.inlineData.mimeType || mime; break; }
+        if (p.inline_data?.data) { imgData = p.inline_data.data; mime = p.inline_data.mime_type || mime; break; }
+      }
+
+      if (imgData) {
+        slot.innerHTML = '<img src="data:' + mime + ';base64,' + imgData + '" alt="Ejemplo del corte"/>';
+      } else {
+        slot.innerHTML = '<div class="cut-img-error">La IA no devolvió imagen para este estilo</div>';
+      }
+
+    } catch (err) {
+      slot.innerHTML = '<div class="cut-img-error">Error de conexión al generar la imagen</div>';
+    }
+  }
 }
 
 function copyFicha() {
